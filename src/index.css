@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+/* Fuerza a que los videos de LiveKit se adapten sin recortarse */
+.lk-video-container video, 
+.lk-participant-tile video,
+video {
+  object-fit: contain !important;
+  background-color: #020617; /* Slate 950 de Tailwind para el fondo */
+}
