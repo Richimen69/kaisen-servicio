@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from "react";
-import {
-  LiveKitRoom,
+import { 
+  LiveKitRoom, 
   VideoTrack,
   RoomAudioRenderer,
   useTracks,
   useLocalParticipant,
-} from "@livekit/components-react";
+  useMediaDeviceSelect // <-- Agrega este hook aquí
+} from '@livekit/components-react';
 import { Track } from "livekit-client";
 import "@livekit/components-styles";
 import {
@@ -270,29 +271,43 @@ function ClientLayout() {
 // ---------------------------------------------------------
 // VISTA DEL TÉCNICO (CONSOLA DE CONTROL DE MEDIOS COMPLETA)
 // ---------------------------------------------------------
+// ---------------------------------------------------------
+// VISTA DEL TÉCNICO (CONSOLA DE CONTROL DE MEDIOS COMPLETA)
+// ---------------------------------------------------------
+// ---------------------------------------------------------
+// VISTA DEL TÉCNICO (CONSOLA CORREGIDA PARA PANTALLAS Y TEXTOS LARGOS)
+// ---------------------------------------------------------
 function TechnicianLayout() {
-  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } =
-    useLocalParticipant();
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+
+  const { 
+    devices: cameras, 
+    activeDeviceId: activeCameraId, 
+    setActiveMediaDevice: setActiveCamera 
+  } = useMediaDeviceSelect({ kind: 'videoinput' });
+
+  const { 
+    devices: microphones, 
+    activeDeviceId: activeMicId, 
+    setActiveMediaDevice: setActiveMic 
+  } = useMediaDeviceSelect({ kind: 'audioinput' });
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-900">
+      
+      {/* Encabezado */}
       <div className="p-4 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
-        <h2 className="text-sm font-bold tracking-wider text-red-500">
-          CONSOLA DE TRANSMISIÓN DEL TÉCNICO
-        </h2>
+        <h2 className="text-sm font-bold tracking-wider text-red-500">CONSOLA DE TRANSMISIÓN DEL TÉCNICO</h2>
         <span className="text-xs bg-slate-800 px-2.5 py-1 rounded-full text-slate-400">
           Rol: Emisor
         </span>
       </div>
 
-      {/* Monitor de retorno para el técnico (Ve su propia OBS Virtual Camera) */}
+      {/* Monitor de retorno (Video) */}
       <div className="flex-1 bg-slate-950 flex items-center justify-center relative">
         {isCameraEnabled ? (
-          <VideoTrack
-            trackRef={{
-              participant: localParticipant,
-              source: Track.Source.Camera,
-            }}
+          <VideoTrack 
+            trackRef={{ participant: localParticipant, source: Track.Source.Camera }} 
             className="w-full h-full"
           />
         ) : (
@@ -300,32 +315,73 @@ function TechnicianLayout() {
         )}
       </div>
 
-      {/* Controles de muteo y estado para el técnico */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950 flex justify-center gap-4">
-        <button
-          onClick={() =>
-            localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)
-          }
-          className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-            isMicrophoneEnabled
-              ? "bg-slate-800 hover:bg-slate-700 text-white"
-              : "bg-red-600 hover:bg-red-700 text-white"
-          }`}
-        >
-          {isMicrophoneEnabled ? "Silenciar Micrófono" : "Activar Micrófono"}
-        </button>
+      {/* Barra inferior de controles (Corregida con Flexbox y anchos máximos) */}
+      <div className="p-4 border-t border-slate-800 bg-slate-950 flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4">
+        
+        {/* Contenedores de Selectores con ancho máximo fijo para evitar deformaciones */}
+        <div className="flex flex-col sm:flex-row gap-4 flex-1 md:flex-initial">
+          
+          {/* Selector de Video */}
+          <div className="flex flex-col gap-1.5 w-full sm:w-[240px]">
+            <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+              Origen de Video
+            </label>
+            <select
+              value={activeCameraId}
+              onChange={(e) => setActiveCamera(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600 cursor-pointer truncate"
+            >
+              {cameras.map((camera) => (
+                <option key={camera.deviceId} value={camera.deviceId} className="bg-slate-900">
+                  {camera.label || `Cámara ${camera.deviceId.slice(0, 5)}`}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <button
-          onClick={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
-          className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-            isCameraEnabled
-              ? "bg-slate-800 hover:bg-slate-700 text-white"
-              : "bg-red-600 hover:bg-red-700 text-white"
-          }`}
-        >
-          {isCameraEnabled ? "Pausar Video (OBS)" : "Reanudar Video (OBS)"}
-        </button>
+          {/* Selector de Audio (Evita que nombres largos ensanchen el componente) */}
+          <div className="flex flex-col gap-1.5 w-full sm:w-[260px]">
+            <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+              Entrada de Audio (Micrófono)
+            </label>
+            <select
+              value={activeMicId}
+              onChange={(e) => setActiveMic(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600 cursor-pointer truncate"
+            >
+              {microphones.map((mic) => (
+                <option key={mic.deviceId} value={mic.deviceId} className="bg-slate-900">
+                  {mic.label || `Micrófono ${mic.deviceId.slice(0, 5)}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+        </div>
+
+        {/* Botones de Acción (Se mantienen siempre alineados a la derecha y sin saltos de línea) */}
+        <div className="flex gap-2 justify-end w-full md:w-auto">
+          <button
+            onClick={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)}
+            className={`px-4 py-2 rounded-lg font-semibold text-xs transition-all cursor-pointer whitespace-nowrap ${
+              isMicrophoneEnabled ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
+            }`}
+          >
+            {isMicrophoneEnabled ? 'Silenciar Micrófono' : 'Activar Micrófono'}
+          </button>
+
+          <button
+            onClick={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
+            className={`px-4 py-2 rounded-lg font-semibold text-xs transition-all cursor-pointer whitespace-nowrap ${
+              isCameraEnabled ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
+            }`}
+          >
+            {isCameraEnabled ? 'Pausar Transmisión' : 'Reanudar Transmisión'}
+          </button>
+        </div>
+
       </div>
+
     </div>
   );
 }
